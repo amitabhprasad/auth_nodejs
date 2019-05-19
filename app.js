@@ -4,8 +4,11 @@ const mongoose = require('mongoose');
 const flash = require('connect-flash');
 const session = require('express-session');
 const passport = require('passport');
+const bodyParser = require('body-parser');
+const cors = require('cors');
 
 const app = express();
+app.use(cors());
 //passport config
 require('./config/passport')(passport);
 
@@ -28,11 +31,9 @@ app.set('view engine','ejs');
 
 //bodyparser
 app.use(express.urlencoded({extended:false}));
-app.use(session({
-  secret : 'secret',
-  resave: true,
-  saveUninitialized: true
-}));
+app.use(bodyParser.json());
+//app.use(session({secret : 'secret',resave: true,saveUninitialized: true}));
+app.use(session({ secret: 'passport-tutorial', cookie: { maxAge: 60000 }, resave: false, saveUninitialized: false }));
 
 //passport middleware
 app.use(passport.initialize());
@@ -50,7 +51,19 @@ app.use((req,res,next)=>{
 //Route
 app.use('/',require('./routes/index'));
 app.use('/users',require('./routes/users'));
+
+
 //login 
+
+app.use(function (err, req, res, next) {
+    if (err.name === 'UnauthorizedError') {
+      return res.status(403).send({
+        success: false,
+        message: 'No token provided.'
+      });
+    }
+  });
+
 app.listen(PORT,()=>{
     console.log(`Server started on port ${PORT}`)
 });

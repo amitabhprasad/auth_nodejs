@@ -5,6 +5,8 @@ const passport = require('passport');
 
 //User
 const User = require('../models/User');
+const {ensureAuthenticated} = require('../config/auth');
+const {auth} = require('../config/auth');
 
 router.get('/login',(req,res)=>{
     res.render('login');
@@ -90,6 +92,8 @@ router.post('/register',(req,res)=>{
 
 //Login handle
 router.post('/login',(req,res,next)=>{
+    //console.log(req);
+    //body: { email: 'test@abc.com', password: '123456' },
     passport.authenticate('local',{
         successRedirect:'/dashboard',
         failureRedirect:'/users/login',
@@ -97,8 +101,34 @@ router.post('/login',(req,res,next)=>{
     })(req,res,next);
 });
 
+router.post('/api/authenticate',auth.optional,(req,res,next)=>{
+    
+    const { body } = req;
+    
+    if(!body.email) {
+        return res.status(422).json({
+          errors: {email: 'is required',},
+        });
+      }
+
+    if(!body.password) {
+        return res.status(422).json({
+          errors: {password: 'is required',},
+        });
+      }
+    return passport.authenticate('local',{session:false},(err,passportUser,info)=>{
+        if (err) return next(err);
+        if(passportUser){
+            const user = passportUser;
+            user.token = passportUser.generateJWT();
+            return res.json({ user: user.toAuthJSON() });
+        }
+        return status(400).info;
+    })(req, res, next);
+});
+
 //Logout handle
-router.get('/logout',(req,res)=>{
+router.get('/logout',ensureAuthenticated,(req,res)=>{
    req.logOut();
    req.flash('success_msg','You are log out');
    res.redirect('/users/login');
